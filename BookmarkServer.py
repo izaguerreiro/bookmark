@@ -44,11 +44,13 @@
 import http.server
 import os
 import requests
+import threading
+from socketserver import ThreadingMixIn
 from urllib.parse import unquote, parse_qs
 
 memory = {}
 
-form = '''<!DOCTYPE html>
+form = """<!DOCTYPE html>
 <title>Bookmark Server</title>
 <form method="POST">
     <label>Long URI:
@@ -65,16 +67,16 @@ form = '''<!DOCTYPE html>
 <pre>
 {}
 </pre>
-'''
+"""
 
 
 def CheckURI(uri, timeout=5):
-    '''Check whether this URI is reachable, i.e. does it return a 200 OK?
+    """ Check whether this URI is reachable, i.e. does it return a 200 OK?
 
     This function returns True if a GET request to uri returns a 200 OK, and
     False if that GET request returns any other response, or doesn't return
     (i.e. times out).
-    '''
+    """
     try:
         r = requests.get(uri, timeout=timeout)
         if r.status_code == 200:
@@ -146,8 +148,13 @@ class Shortener(http.server.BaseHTTPRequestHandler):
             self.wfile.write(
                 "Couldn't fetch URI '{}'. Sorry!".format(longuri).encode())
 
+
+class ThreadHTTPServer(ThreadingMixIn, http.server.HTTPServer):
+    "This is an HTTPServer that supports thread-based concurrency."
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
     server_address = ('', port)
-    httpd = http.server.HTTPServer(server_address, Shortener)
+    httpd = ThreadHTTPServer(server_address, Shortener)
     httpd.serve_forever()
